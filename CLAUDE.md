@@ -7,7 +7,7 @@
 | `blogt-api` | Express read API — serves posts from file-based markdown | 3000 |
 | `blogt-editor` | Express authenticated write backend + AI vision | 3001 |
 | `blogtv` | Vue 3 + Vite SPA (readers) served via Nginx in prod | 5173 dev |
-| `blogger` | Express SSR archive of old Blogger blogs; served at `/archive/` via Nginx proxy | 3002 dev |
+| `blogger` | Express SSR archive of old Blogger blogs; served at `/archive/` via Nginx proxy | 3000 (set `PORT=3002` locally to avoid conflict with blogt-api) |
 
 No monorepo build tool. Each package is built and deployed independently.
 
@@ -19,6 +19,7 @@ npm run install:all
 npm run start:api
 npm run start:editor
 npm run start:tv
+npm run start:blogger
 
 # per package
 npm run dev    # nodemon (api/editor) or vite dev server (blogtv)
@@ -97,6 +98,7 @@ Never hardcode API or media hostnames. In dev, `API_BASE = http://localhost:3000
 | `VITE_API_BASE` | blogtv | API host (`/api` prod). Injected as Docker build ARG in `blogtv/Dockerfile` — baked into the bundle at build time, not a runtime var. |
 | `VITE_MEDIA_BASE` | blogtv | Media host (`https://objects.ekskog.net`). Also a Docker build ARG — must be in `blogtv/Dockerfile` or images break in production. |
 | `VITE_GEMINI_API_KEY` | blogtv | Gemini AI analysis in `GeminiViewer` |
+| `BASE_PATH` | blogger | URL prefix when served behind a proxy (e.g. `/archive`). All generated hrefs are prefixed; `/images/` paths in post HTML are rewritten via `localise()`. |
 | `SESSION_SECRET` | blogt-editor | Session encryption (falls back to hardcoded string) |
 | `IN_CONTAINER` | blogt-editor | Set to `1` in Docker |
 | `MEDIA_BASE` | blogt-api | Media host for `imageUrl` in responses |
@@ -135,8 +137,32 @@ kubectl port-forward service/blogt-api 3000:3000 -n blogt
 Edit `src/assets/tailwind.css`. Output is generated — do not edit `src/assets/output.css` directly.
 Path alias: `@/` → `./src`.
 
+## blogger
+
+### Data
+
+Six old Blogger archives in `blogger/data/*.json`, pre-processed by `build.js` from Google Takeout Atom feeds. The JSON is static — re-run `build.js` only when importing a new export. Images are copied into `blogger/public/images/<slug>/` by the same script and baked into the Docker image (no NFS mount needed).
+
+### Routes
+
+| Path | Returns |
+|---|---|
+| `/` | Blog list (SSR HTML) |
+| `/:blogSlug` | Post index grouped by year (SSR HTML) |
+| `/:blogSlug/:year/:month/:postFile` | Individual post with prev/next nav (SSR HTML) |
+
+### Adding a new blog
+
+1. Add an entry to the `BLOGS` array in `build.js` with the correct `atomPath` and `albumPath` from the Takeout export.
+2. Run `node build.js` from the `blogger/` directory.
+3. Commit the updated `data/*.json` and any new `public/images/<slug>/` files.
+
 ## Deployment
 
 Push to `main` → GitHub Actions builds Docker images → pushes to `ghcr.io/ekskog/` → deploys to Kubernetes namespace `blogt`. K8s manifests are in `k8s/` inside each package directory.
 
-Nginx (`blogtv/nginx.conf`) proxies `/api/*` → `blogt-api:3000/` and serves the Vue SPA with `try_files $uri /index.html`.
+Nginx (`blogtv/nginx.conf`) proxies:
+- `/api/*` → `blogt-api:3000/` (JSON API)
+- `/archive/` → `blogger:3000/` (SSR HTML archive; `blogger` is ClusterIP-only, not exposed directly)
+
+Vue SPA is served with `try_files $uri /index.html`.
