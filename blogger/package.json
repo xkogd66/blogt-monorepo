@@ -1,0 +1,17 @@
+{
+  "name": "blogger-archive",
+  "version": "1.0.0",
+  "description": "Self-hosted Blogger archive",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build.js",
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "fast-xml-parser": "^4.4.1"
+  }
+}

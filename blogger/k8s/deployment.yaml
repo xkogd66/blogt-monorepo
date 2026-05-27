@@ -1,0 +1,35 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: blogt
+  name: blogger
+  labels:
+    app: blogger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blogger
+  template:
+    metadata:
+      labels:
+        app: blogger
+    spec:
+      containers:
+        - name: blogger
+          image: ghcr.io/ekskog/blogger:latest
+          imagePullPolicy: Always
+          env:
+            - name: BASE_PATH
+              value: /archive
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 3000
+              name: blogger

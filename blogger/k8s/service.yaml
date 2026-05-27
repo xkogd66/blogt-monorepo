@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: blogt
+  name: blogger
+spec:
+  selector:
+    app: blogger
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      name: http
+  type: ClusterIP

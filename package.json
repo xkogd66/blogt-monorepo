@@ -5,12 +5,14 @@
     "workspaces": [
         "blogt-api",
         "blogt-editor",
-        "blogtv"
+        "blogtv",
+        "blogger"
     ],
     "scripts": {
         "start:api": "npm run start --workspace=blogt-api",
         "start:editor": "npm run start --workspace=blogt-editor",
         "start:tv": "npm run dev --workspace=blogtv",
+        "start:blogger": "npm run start --workspace=blogger",
         "install:all": "npm install"
     }
 }

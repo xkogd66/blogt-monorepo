@@ -7,6 +7,7 @@
 | `blogt-api` | Express read API — serves posts from file-based markdown | 3000 |
 | `blogt-editor` | Express authenticated write backend + AI vision | 3001 |
 | `blogtv` | Vue 3 + Vite SPA (readers) served via Nginx in prod | 5173 dev |
+| `blogger` | Express SSR archive of old Blogger blogs; served at `/archive/` via Nginx proxy | 3002 dev |
 
 No monorepo build tool. Each package is built and deployed independently.
 
