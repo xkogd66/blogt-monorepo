@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Apply frame overlay to square photos, stamping EXIF time from metadata."""
+"""Apply frame overlay to square photos, stamping a user-supplied time."""
 
-import os
 import sys
 from pathlib import Path
-from datetime import datetime
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 FRAME_PATH     = Path(__file__).parent / "frame.jpg"
@@ -12,25 +10,6 @@ VIGNETTE_FEATHER = 0.025  # ponytail: fraction of image faded at each edge
 TIMESTAMP_X    = 0.095  # must clear the vertical registration mark at x≈136
 TIMESTAMP_Y    = 0.915
 FONT_SIZE_RATIO = 0.022
-
-
-def get_exif_time(path):
-    img = Image.open(path)
-    try:
-        exif = img._getexif() or {}
-        for tag in (36867, 36868, 306):  # DateTimeOriginal, DateTimeDigitized, DateTime
-            field = exif.get(tag)
-            if field:
-                try:
-                    return datetime.strptime(field, "%Y:%m:%d %H:%M:%S")
-                except ValueError:
-                    pass
-    except Exception:
-        pass
-    # Fall back to filesystem creation time (macOS birthtime, else mtime)
-    s = os.stat(path)
-    ts = getattr(s, "st_birthtime", s.st_mtime)
-    return datetime.fromtimestamp(ts)
 
 
 def make_vignette(w, h, feather):
@@ -105,8 +84,7 @@ def add_frame(src, dst=None, stamp_only=False):
         result = Image.alpha_composite(canvas.convert("RGBA"), frame_rgba)
 
     # Timestamp — sits in the white border below the photo, not inside the photo
-    dt = get_exif_time(src)
-    time_str = dt.strftime("%H:%M:%S") if dt else "??:??:??"
+    time_str = input("Timestamp (HH:MM:SS): ").strip()
     draw = ImageDraw.Draw(result)
     font = find_font(int(fw * FONT_SIZE_RATIO))
     ts_x = int(fw * TIMESTAMP_X)
