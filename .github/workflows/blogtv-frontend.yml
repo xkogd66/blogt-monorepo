@@ -71,5 +71,5 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           echo "Deploying image: ${{ env.IMAGE_TAG }}"
-          sed "s|ghcr.io/ekskog/blogtv:latest|${{ env.IMAGE_TAG }}|g" blogtv/k8s/deployment.yaml | kubectl apply -f -
+          sed "s|ghcr.io/xkogd66/blogtv:latest|${{ env.IMAGE_TAG }}|g" blogtv/k8s/deployment.yaml | kubectl apply -f -
           kubectl rollout status deployment/blogt-frontend --namespace=blogt --timeout=600s

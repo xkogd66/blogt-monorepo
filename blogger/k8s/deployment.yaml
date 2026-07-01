@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: blogger
-          image: ghcr.io/ekskog/blogger:latest
+          image: ghcr.io/xkogd66/blogger:latest
           imagePullPolicy: Always
           env:
             - name: BASE_PATH

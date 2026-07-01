@@ -69,7 +69,7 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           echo "Deploying image: ${{ env.IMAGE_TAG }}"
-          sed "s|ghcr.io/ekskog/blogt-api:latest|${{ env.IMAGE_TAG }}|g" blogt-api/k8s/deployment.yaml | kubectl apply -f -
+          sed "s|ghcr.io/xkogd66/blogt-api:latest|${{ env.IMAGE_TAG }}|g" blogt-api/k8s/deployment.yaml | kubectl apply -f -
           kubectl apply -f blogt-api/k8s/service.yaml
           kubectl apply -f blogt-api/k8s/auto-scaler.yaml
           kubectl rollout status deployment/blogt-api --namespace=blogt --timeout=600s

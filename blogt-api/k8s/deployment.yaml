@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: blogt-api
-          image: ghcr.io/ekskog/blogt-api:latest
+          image: ghcr.io/xkogd66/blogt-api:latest
           imagePullPolicy: Always
           resources:
             requests:

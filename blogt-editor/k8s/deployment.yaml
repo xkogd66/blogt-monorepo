@@ -21,7 +21,7 @@ spec:
         - "mjolnir"       
       containers:
         - name: blogt-editor
-          image: ghcr.io/ekskog/blogt-editor:latest
+          image: ghcr.io/xkogd66/blogt-editor:latest
           imagePullPolicy: Always
           resources:
             requests:
