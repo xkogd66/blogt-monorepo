@@ -1,0 +1,13 @@
+- banner [ref=e4]:
+  - link "App Logo" [ref=e6] [cursor=pointer]:
+    - /url: /posts
+    - img "App Logo" [ref=e7]
+  - navigation [ref=e8]:
+    - list [ref=e9]:
+      - generic [ref=e10] [cursor=pointer]: Random Post
+      - generic [ref=e11] [cursor=pointer]: Explore Day
+      - listitem [ref=e12]:
+        - textbox [ref=e13]
+      - listitem [ref=e14]:
+        - textbox "Search by tag" [ref=e15]
+        - generic [ref=e16] [cursor=pointer]: 

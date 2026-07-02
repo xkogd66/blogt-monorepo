@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+## Git — never commit or push without being asked in that exact message
+
+Never run `git commit` or `git push` as part of a broader task, even one phrased as "do all of X" or "finish the cutover" — that is not authorization for git actions. Only commit/push when the user's message explicitly says so for that specific action, every time. Prior approval does not carry forward to later turns or later commits.
+
 ## Packages
 
 | Package | Role | Port |
