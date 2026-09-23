@@ -69,35 +69,53 @@
       </div>
     </div>
 
-    <!-- Pagination Controls -->
-    <div class="flex justify-between items-center mt-10 mb-16 px-4 sm:px-6 md:px-8">
-      <button
-        @click="fetchPreviousPage"
-        :disabled="isFirstPage || isLoading"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
-      >
-        {{ isLoading ? 'Loading...' : '<' }}
-      </button>
+    <!-- Initial load indicator -->
+    <div
+      v-if="isLoading && posts.length === 0"
+      class="flex justify-center items-center mt-10 mb-16"
+    >
+      <span class="text-sm text-gray-600">Loading posts...</span>
+    </div>
+
+    <!-- Error state -->
+    <div v-if="error && posts.length === 0" class="flex flex-col items-center mt-10 mb-16 gap-4">
+      <p class="text-sm text-red-600">{{ error }}</p>
       <button
         @click="fetchFirstPage"
-        :disabled="isFirstPage || isLoading"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
+        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
       >
-        {{ isLoading ? 'Loading...' : 'Page 1' }}
+        Retry
       </button>
-      <button
-        @click="fetchNextPage"
-        :disabled="posts.length < 5 || isLoading"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
-      >
-        {{ isLoading ? 'Loading...' : '>' }}
-      </button>
+    </div>
+
+    <!-- Infinite scroll sentinel: observed to trigger loading the next chunk -->
+    <div ref="sentinel" class="h-px w-full" aria-hidden="true"></div>
+
+    <!-- Load-more status -->
+    <div v-if="posts.length > 0" class="flex justify-center items-center mt-10 mb-16">
+      <div v-if="isLoading" class="flex items-center gap-2 text-sm text-gray-600">
+        <span
+          class="inline-block w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"
+        ></span>
+        Loading more posts...
+      </div>
+      <p v-else-if="error" class="text-sm text-red-600 flex items-center gap-4">
+        {{ error }}
+        <button
+          @click="loadMore"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+        >
+          Retry
+        </button>
+      </p>
+      <p v-else-if="hasMore" class="text-sm text-gray-500">Scroll for more posts</p>
+      <p v-else class="text-sm text-gray-500">You have reached the end.</p>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, reactive, nextTick } from 'vue'
 import { marked } from 'marked'
 import { postStore } from '@/stores/posts'
 import CryptoJS from 'crypto-js'
@@ -107,25 +125,18 @@ export default {
   name: 'BlogPosts',
   setup() {
     const posts = ref([])
-    const isFirstPage = ref(true)
-    const currentFirstPostDate = ref(null)
-    const currentLastPostDate = ref(null)
+    const nextCursor = ref(null)
     const isLoading = ref(false)
+    const hasMore = ref(true)
+    const error = ref('')
+    const sentinel = ref(null)
     const flippedCards = reactive({}) // Track flipped state for each card
+
+    let observer = null
 
     const toggleFlip = (index) => {
       flippedCards[index] = !flippedCards[index]
       console.log(`Toggled card ${index} to ${flippedCards[index] ? 'flipped' : 'unflipped'}`)
-    }
-
-    const fetchPosts = async () => {
-      try {
-        fetchFirstPage()
-      } catch (error) {
-        console.error('Error fetching posts:', error)
-      } finally {
-        isLoading.value = false
-      }
     }
 
     const extractTitle = (post) => {
@@ -189,9 +200,15 @@ export default {
       return ''
     }
 
+    /**
+     * Loads the latest 10 posts, replacing any posts already rendered.
+     */
     const fetchFirstPage = async () => {
+      isLoading.value = true
+      error.value = ''
+      hasMore.value = true
+
       try {
-        isLoading.value = true
         console.log('fetch latest posts...')
         const response = await fetch(`${API_BASE}/post`)
         if (!response.ok) {
@@ -199,107 +216,115 @@ export default {
         }
         const data = await response.json()
         posts.value = data
-        isFirstPage.value = true
-        if (data.length > 0) {
-          currentFirstPostDate.value = extractDate(data[0])
-          currentLastPostDate.value = extractDate(data[data.length - 1])
-          console.log('first page > Current First Post Date:', currentFirstPostDate.value)
-          console.log('first page > Current Last Post Date:', currentLastPostDate.value)
+        // Cursor for the next batch: the second-to-last post, i.e. a real post date that
+        // is strictly older than the newest post on screen (see `loadMore`).
+        const cursorPost = data[data.length - 2] ?? data[data.length - 1]
+        if (cursorPost) {
+          nextCursor.value = extractDate(cursorPost)
+          console.log('first page > Next cursor:', nextCursor.value)
+        } else {
+          hasMore.value = false
         }
-      } catch (error) {
-        console.error('Error fetching first page posts:', error)
+      } catch (err) {
+        console.error('Error fetching first page posts:', err)
+        error.value = 'Could not load posts. Please try again.'
       } finally {
         isLoading.value = false
       }
     }
 
-    const fetchNextPage = async () => {
-      if (posts.value.length === 0) return
-      console.log('fetch next page...')
+    /**
+     * Appends the next batch of posts, walking backwards through the archive.
+     *
+     * `GET /posts/from/:ddmmyyyy` returns up to 10 posts starting at that date and
+     * stepping back through *existing* post dates only (blogt-api `getPostsArray` +
+     * `getPrev`). Two consequences drive the cursor handling below:
+     *
+     *  - A cursor must be a date that actually has a post. The API feeds the cursor
+     *    through `getPrev`, which returns nothing for a date it cannot find, ending the
+     *    batch immediately — hence never walk by calendar arithmetic.
+     *  - The cursor must be strictly older than the newest loaded post, otherwise the
+     *    batch starts on a post already on screen and yields a single, duplicate entry.
+     *
+     * The cursor is therefore the second-to-last loaded post's date, which is both a
+     * real post date and guaranteed older than the last one. Posts already rendered are
+     * filtered out so the boundary entry is never duplicated.
+     */
+    const loadMore = async () => {
+      if (isLoading.value || !hasMore.value || !nextCursor.value) return
+
+      isLoading.value = true
+      error.value = ''
 
       try {
-        isLoading.value = true
-
-        console.log('fetchNextPage > Current First Post Date:', currentFirstPostDate.value)
-        console.log('fetchNextPage > Current Last Post Date:', currentLastPostDate.value)
-
-        const day = parseInt(currentLastPostDate.value.slice(0, 2), 10) - 1
-        const month = parseInt(currentLastPostDate.value.slice(2, 4), 10) - 1 // JS months are 0-indexed
-        const year = parseInt(currentLastPostDate.value.slice(4), 10)
-        const prevDate = new Date(year, month, day)
-
-        const prevDay = String(prevDate.getDate()).padStart(2, '0')
-        const prevMonth = String(prevDate.getMonth() + 1).padStart(2, '0')
-        const prevYear = prevDate.getFullYear()
-        const dateToFetch = `${prevDay}${prevMonth}${prevYear}`
-
-        console.log('fetchNextPage > Will Fetch:', dateToFetch)
+        const dateToFetch = nextCursor.value
+        console.log('loadMore > Will Fetch:', dateToFetch)
 
         const response = await fetch(`${API_BASE}/posts/from/${dateToFetch}`)
         if (!response.ok) {
           throw new Error('Failed to fetch next posts')
         }
         const data = await response.json()
-        if (data.length > 0) {
-          posts.value = data
-          isFirstPage.value = false
-          currentFirstPostDate.value = extractDate(data[0])
-          currentLastPostDate.value = extractDate(data[data.length - 1])
+
+        const existing = new Set(posts.value)
+        const newPosts = data.filter((post) => !existing.has(post))
+
+        if (newPosts.length === 0) {
+          hasMore.value = false
+          return
         }
-      } catch (error) {
-        console.error('Error fetching next posts:', error)
+
+        posts.value = [...posts.value, ...newPosts]
+
+        // Step the cursor back to an older, existing post date.
+        const previousDate = posts.value[posts.value.length - 2]
+        const cursor = previousDate ? extractDate(previousDate) : null
+
+        if (!cursor || cursor === nextCursor.value) {
+          // No older post to anchor on: the archive is exhausted.
+          hasMore.value = false
+          return
+        }
+
+        nextCursor.value = cursor
+        console.log('loadMore > Next cursor:', nextCursor.value)
+      } catch (err) {
+        console.error('Error fetching next posts:', err)
+        error.value = 'Could not load more posts. Please try again.'
       } finally {
         isLoading.value = false
       }
     }
 
-    const fetchPreviousPage = async () => {
-      console.log('fetch previous page...')
-      if (!currentFirstPostDate.value) return
-      console.log('cfd: ', currentFirstPostDate)
-
-      try {
-        isLoading.value = true
-
-        console.log('fetchPreviousPage > Current First Post Date:', currentFirstPostDate.value)
-        console.log('fetchPreviousPage > Current Last Post Date:', currentLastPostDate.value)
-
-        const day = parseInt(currentFirstPostDate.value.slice(0, 2), 10)
-        const month = parseInt(currentLastPostDate.value.slice(2, 4), 10) - 1 // JS months are 0-indexed
-        const year = parseInt(currentLastPostDate.value.slice(4), 10)
-        const date = new Date(year, month, day)
-
-        const nextDate = new Date(date)
-        nextDate.setDate(nextDate.getDate() + 10)
-        console.log('This is the date 10 days after Date:', nextDate)
-
-        const nextDay = String(nextDate.getDate()).padStart(2, '0')
-        const nextMonth = String(nextDate.getMonth() + 1).padStart(2, '0') // JS months are 0-indexed
-        const nextYear = nextDate.getFullYear()
-
-        const dateToFetch = `${nextDay}${nextMonth}${nextYear}`
-        console.log(`Date to fetch from: ${nextDay} - ${nextMonth} - ${nextYear}`)
-
-        const response = await fetch(`${API_BASE}/posts/from/${dateToFetch}`)
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch next posts')
-        }
-        const data = await response.json()
-        if (data.length > 0) {
-          posts.value = data
-          isFirstPage.value = false
-          currentFirstPostDate.value = extractDate(data[0])
-          currentLastPostDate.value = extractDate(data[data.length - 1])
-        }
-      } catch (error) {
-        console.error('Error fetching next posts:', error)
-      } finally {
-        isLoading.value = false
+    const stopObserver = () => {
+      if (observer) {
+        observer.disconnect()
+        observer = null
       }
     }
 
-    onMounted(fetchPosts)
+    const startObserver = async () => {
+      stopObserver()
+      await nextTick()
+      if (!sentinel.value) return
+
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            loadMore()
+          }
+        },
+        { rootMargin: '600px 0px' },
+      )
+      observer.observe(sentinel.value)
+    }
+
+    onMounted(async () => {
+      await fetchFirstPage()
+      startObserver()
+    })
+
+    onUnmounted(stopObserver)
 
     return {
       posts,
@@ -311,16 +336,18 @@ export default {
       extractGeotag,
       removeGeotag,
       fetchFirstPage,
-      fetchNextPage,
-      fetchPreviousPage,
-      isFirstPage,
+      loadMore,
       extractDate,
       isLoading,
+      hasMore,
+      error,
+      sentinel,
       calculateCaption,
       flippedCards,
       toggleFlip,
     }
   },
+
   methods: {
     setPost(post) {
       postStore.setCurrentPost(post)
