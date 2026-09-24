@@ -116,24 +116,63 @@ const formatDate = async (dateString) => {
   return formatted;
 };
 
-const formatDates = async (inputDate) => {
-  const day = inputDate.substring(0, 2);
-  const month = inputDate.substring(2, 4);
-  const year = inputDate.substring(4, 8);
+/**
+ * Resolves a DDMMYYYY request to the feed page that starts at (or below) it.
+ *
+ * The feed pages backwards by passing the date of the oldest post a client already
+ * has. That cursor may be any calendar date (including days with no post), so it has
+ * to be snapped onto a date that actually holds a post before `getPostsArray` can
+ * walk back from it.
+ *
+ * Returns the date to start the batch at, or `null` when there is nothing to serve
+ * (empty archive). Returns:
+ *  - the requested date itself when it is a real post date (start the batch there);
+ *  - the newest post strictly *older* than the request when the request falls between
+ *    posts or on a gap date (the client cannot have seen that older post yet);
+ *  - the archive tail when the request predates every post, so a cursor that has run
+ *    off the end still yields the last page instead of dead-ending.
+ */
+async function resolveFeedStart(requestedDate) {
+  const dates = await getSortedDates();
+  if (!dates.length) return null;
 
-  const latestPostPath = `${year}/${month}/${day}.md`;
+  const requestedKey = ddmmyyyyToSortKey(requestedDate);
+  // `dates` is ascending, so the last date <= the request is the newest match.
+  let anchor = null;
+  for (const date of dates) {
+    if (ddmmyyyyToSortKey(date) <= requestedKey) anchor = date;
+    else break;
+  }
 
-  const latestPostDate = new Date(
-    `${year}-${month}-${day}T00:00:00.000Z`
-  ).toISOString();
+  // Request predates every post: serve the tail (oldest page) rather than nothing.
+  if (!anchor) return dates[0];
 
-  return { latestPostDate, latestPostPath };
+  // Gap date or a date between posts: the request is not itself a post, so the batch
+  // must start strictly below it — the client has not seen those older posts yet.
+  if (anchor !== requestedDate) return getPrev(anchor);
+
+  // Exact post date: start the batch here (that post is the boundary the caller has).
+  return anchor;
+}
+
+/**
+ * Returns up to `postsPerPage` posts, newest first, starting at (or strictly below)
+ * `requestedDate` (DDMMYYYY) — see `resolveFeedStart` for the resolution rules.
+ *
+ * Pass the date of the oldest post already rendered as `requestedDate` and the next
+ * batch continues below it, so consecutive batches are contiguous and never repeat a
+ * boundary post.
+ */
+const getPostsFrom = async (requestedDate, postsPerPage = 10) => {
+  const start = await resolveFeedStart(requestedDate);
+  if (!start) return [];
+
+  return getPostsArray(start, postsPerPage);
 };
 
-const getPostsArray = async (dateString) => {
+const getPostsArray = async (dateString, postsPerPage = 10) => {
   try {
     const postsArray = [];
-    const postsPerPage = 10;
 
     for (let i = 0; i < postsPerPage; i++) {
       const day = dateString.slice(0, 2);
@@ -289,8 +328,9 @@ module.exports = {
   getNext,
   getPrev,
   getPostsArray,
+  getPostsFrom,
+  resolveFeedStart,
   formatDate,
-  formatDates,
   updateTagsIndex,
   updateTagsIndexForPost,
   getSortedDates,

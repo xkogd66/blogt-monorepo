@@ -12,8 +12,8 @@ const MEDIA_BASE = process.env.MEDIA_BASE || "https://objects.ekskog.net";
 
 const {
   getPostsArray,
+  getPostsFrom,
   formatDate,
-  formatDates,
   updateTagsIndexForPost,
   getSortedDates,
   getNext,
@@ -178,18 +178,32 @@ router.put("/:date", async (req, res) => {
   }
 });
 
+/**
+ * GET /post/from/:startDate
+ *
+ * Same feed-pagination semantics as `GET /posts/from/:startDate` (both delegate to
+ * `getPostsFrom` in `utils/utils.js`). `/posts/from/` is the path the blog feed uses;
+ * this alias is kept for compatibility.
+ */
 router.get("/from/:startDate", async (req, res) => {
   const { startDate } = req.params;
-  const { latestPostDate, latestPostPath } = await formatDates(startDate);
+  debug("[MAIN] Posts from date:", startDate);
 
-  var dateString = await formatDate(latestPostDate);
-  debug(`[MAIN] Latest post date: ${latestPostDate}`);
+  if (!/^\d{8}$/.test(startDate)) {
+    return res.status(400).json({ error: "Invalid date format. Use DDMMYYYY." });
+  }
 
-  if (!latestPostPath) {
-    return res.status(404).json({ error: "No posts found" });
-  } else {
-    let postsArray = await getPostsArray(dateString);
+  try {
+    const postsArray = await getPostsFrom(startDate);
+
+    if (!postsArray.length) {
+      return res.status(404).json({ error: "No posts found" });
+    }
+
     res.send(postsArray);
+  } catch (err) {
+    debug("Error fetching posts from date: %O", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

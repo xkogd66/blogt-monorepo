@@ -36,11 +36,19 @@ All endpoints below are relative to this base.
 
 ## Posts
 
-Mounted at `\`/posts\``.
+Mounted at `\`/post\`` (`routes/post.js`), with archive/paging helpers additionally
+mirrored at `\`/posts\`` (`routes/archive.js`).
 
-### `GET /posts`
+> **Note on mount points**: the single-post routes (`/`, `/details/:date`, `/:dateString`,
+> `POST`/`PUT`) live on the `/post` router, while `/posts` (plural) serves the archive
+> endpoints and the `GET /posts/from/:startDate` paging route used by the frontend feed.
+> `/post/from/:startDate` is retained as an alias — both paths delegate to the same
+> `getPostsFrom` implementation in `utils/utils.js`.
 
-- **Description**: Returns an array of posts starting from the **latest post** (according to filesystem).
+### `GET /post`
+
+- **Description**: Returns the latest posts (up to 10), newest first. This is the first
+  page of the frontend feed.
 - **Request**:
   - No body.
   - No query params.
@@ -50,14 +58,30 @@ Mounted at `\`/posts\``.
 
 ---
 
-### `GET /posts/from/:startDate`
+### `GET /posts/from/:startDate` (alias: `GET /post/from/:startDate`)
 
-- **Description**: Returns an array of posts starting from (or near) the given `startDate`.
+- **Description**: Returns up to 10 posts, newest first, walking **backwards** through
+  existing post dates only. This is the "load more" primitive used by the blog feed's
+  infinite scroll.
+- **Implementation**: `getPostsFrom` in `utils/utils.js` — the single source of truth
+  for feed pagination. Both mount points delegate to it.
 - **Path params**:
-  - `startDate` (string): date in a format accepted by `formatDates` (currently treated as a string and normalized there).
+  - `startDate` (string): `DDMMYYYY`, e.g. `15092026`.
+- **Validation**:
+  - If `startDate` does not match `^\d{8}$`:
+    - `400 Bad Request` with `{ "error": "Invalid date format. Use DDMMYYYY." }`.
+- **Behavior**:
+  - `startDate` is resolved to the newest existing post date not newer than the requested
+    date (so any calendar date is accepted, including dates without a post).
+  - The batch starts at that resolved date; pass the date of the **oldest post you already
+    have** as the cursor and the next batch continues strictly below it, so boundary posts
+    are never duplicated.
+  - If `startDate` is older than every post, the archive tail (oldest post onwards) is
+    returned instead of a `404`.
 - **Response**:
-  - `200 OK` with an array of posts (from `getPostsArray`), starting at/around the normalized `startDate`.
-  - `404 Not Found` with `{ "error": "No posts found" }` if nothing can be resolved from `startDate`.
+  - `200 OK` with an array of posts (newest first).
+  - `404 Not Found` with `{ "error": "No posts found" }` if no posts exist at all.
+  - `500 Internal Server Error` with `{ "error": "Internal server error" }` on failure.
 
 ---
 

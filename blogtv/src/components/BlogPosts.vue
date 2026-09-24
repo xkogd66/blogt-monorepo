@@ -88,11 +88,8 @@
       </button>
     </div>
 
-    <!-- Infinite scroll sentinel: observed to trigger loading the next chunk -->
-    <div ref="sentinel" class="h-px w-full" aria-hidden="true"></div>
-
     <!-- Load-more status -->
-    <div v-if="posts.length > 0" class="flex justify-center items-center mt-10 mb-16">
+    <div v-if="posts.length > 0" class="flex justify-center items-center mt-10 mb-4">
       <div v-if="isLoading" class="flex items-center gap-2 text-sm text-gray-600">
         <span
           class="inline-block w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"
@@ -111,11 +108,15 @@
       <p v-else-if="hasMore" class="text-sm text-gray-500">Scroll for more posts</p>
       <p v-else class="text-sm text-gray-500">You have reached the end.</p>
     </div>
+
+    <!-- Infinite scroll sentinel: kept as the true last element so it re-arms after
+         every batch. Observed to trigger loading the next chunk. -->
+    <div ref="sentinel" class="h-px w-full" aria-hidden="true"></div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, reactive, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, reactive, nextTick, watch } from 'vue'
 import { marked } from 'marked'
 import { postStore } from '@/stores/posts'
 import CryptoJS from 'crypto-js'
@@ -133,6 +134,7 @@ export default {
     const flippedCards = reactive({}) // Track flipped state for each card
 
     let observer = null
+    let loadController = null
 
     const toggleFlip = (index) => {
       flippedCards[index] = !flippedCards[index]
@@ -204,9 +206,11 @@ export default {
      * Loads the latest 10 posts, replacing any posts already rendered.
      */
     const fetchFirstPage = async () => {
+      loadController?.abort()
+      loadController = null
+
       isLoading.value = true
       error.value = ''
-      hasMore.value = true
 
       try {
         console.log('fetch latest posts...')
@@ -215,15 +219,20 @@ export default {
           throw new Error('Failed to fetch first page posts')
         }
         const data = await response.json()
+
         posts.value = data
-        // Cursor for the next batch: the second-to-last post, i.e. a real post date that
-        // is strictly older than the newest post on screen (see `loadMore`).
-        const cursorPost = data[data.length - 2] ?? data[data.length - 1]
-        if (cursorPost) {
-          nextCursor.value = extractDate(cursorPost)
+
+        // The next batch starts strictly older than the oldest post on screen, so the
+        // cursor is the last post's date (see `loadMore`). Reset `hasMore` only when the
+        // feed is actually known to be complete — being conservative avoids wrongly
+        // reporting "You have reached the end." on a short first page.
+        if (data.length > 0) {
+          hasMore.value = true
+          nextCursor.value = extractDate(data[data.length - 1])
           console.log('first page > Next cursor:', nextCursor.value)
         } else {
           hasMore.value = false
+          nextCursor.value = null
         }
       } catch (err) {
         console.error('Error fetching first page posts:', err)
@@ -238,17 +247,16 @@ export default {
      *
      * `GET /posts/from/:ddmmyyyy` returns up to 10 posts starting at that date and
      * stepping back through *existing* post dates only (blogt-api `getPostsArray` +
-     * `getPrev`). Two consequences drive the cursor handling below:
+     * `getPrev`). Consequences:
      *
-     *  - A cursor must be a date that actually has a post. The API feeds the cursor
-     *    through `getPrev`, which returns nothing for a date it cannot find, ending the
-     *    batch immediately — hence never walk by calendar arithmetic.
-     *  - The cursor must be strictly older than the newest loaded post, otherwise the
-     *    batch starts on a post already on screen and yields a single, duplicate entry.
+     *  - The cursor must be a date that actually has a post: the API resolves it to the
+     *    newest existing post not newer than that date, so calendar arithmetic alone
+     *    would silently skip/serve the wrong batch.
+     *  - A batch is served oldest-last and the next cursor is that oldest post's date,
+     *    which keeps batches contiguous with no duplicated boundary post.
      *
-     * The cursor is therefore the second-to-last loaded post's date, which is both a
-     * real post date and guaranteed older than the last one. Posts already rendered are
-     * filtered out so the boundary entry is never duplicated.
+     * Posts already rendered are filtered out as a safety net, and `hasMore` is turned
+     * off whenever a response makes no progress so a batch can never retry forever.
      */
     const loadMore = async () => {
       if (isLoading.value || !hasMore.value || !nextCursor.value) return
@@ -256,13 +264,18 @@ export default {
       isLoading.value = true
       error.value = ''
 
+      const controller = new AbortController()
+      loadController = controller
+
       try {
         const dateToFetch = nextCursor.value
         console.log('loadMore > Will Fetch:', dateToFetch)
 
-        const response = await fetch(`${API_BASE}/posts/from/${dateToFetch}`)
+        const response = await fetch(`${API_BASE}/posts/from/${dateToFetch}`, {
+          signal: controller.signal,
+        })
         if (!response.ok) {
-          throw new Error('Failed to fetch next posts')
+          throw new Error(`Failed to fetch next posts (${response.status})`)
         }
         const data = await response.json()
 
@@ -270,28 +283,32 @@ export default {
         const newPosts = data.filter((post) => !existing.has(post))
 
         if (newPosts.length === 0) {
+          // No progress: the archive is exhausted (or the cursor could not be resolved).
           hasMore.value = false
           return
         }
 
         posts.value = [...posts.value, ...newPosts]
+        console.log('loadMore > Total posts:', posts.value.length)
 
-        // Step the cursor back to an older, existing post date.
-        const previousDate = posts.value[posts.value.length - 2]
-        const cursor = previousDate ? extractDate(previousDate) : null
+        const lastPost = posts.value[posts.value.length - 1]
+        const cursor = lastPost ? extractDate(lastPost) : null
 
-        if (!cursor || cursor === nextCursor.value) {
-          // No older post to anchor on: the archive is exhausted.
+        if (!cursor || cursor === dateToFetch) {
+          // The batch did not move the cursor: stop rather than re-request it forever.
           hasMore.value = false
+          nextCursor.value = null
           return
         }
 
         nextCursor.value = cursor
         console.log('loadMore > Next cursor:', nextCursor.value)
       } catch (err) {
+        if (err.name === 'AbortError') return
         console.error('Error fetching next posts:', err)
         error.value = 'Could not load more posts. Please try again.'
       } finally {
+        if (loadController === controller) loadController = null
         isLoading.value = false
       }
     }
@@ -310,6 +327,8 @@ export default {
 
       observer = new IntersectionObserver(
         (entries) => {
+          // Only fire while there is something left to fetch: an idle observer on a
+          // visible sentinel would otherwise re-trigger on every re-render.
           if (entries.some((entry) => entry.isIntersecting)) {
             loadMore()
           }
@@ -319,12 +338,21 @@ export default {
       observer.observe(sentinel.value)
     }
 
+    // Re-arm the observer after every batch: appending posts (or toggling the status
+    // block) moves the sentinel, so it must be observed again to pick up further scrolls.
+    watch([() => posts.value.length, hasMore, isLoading], () => {
+      if (hasMore.value && !isLoading.value) startObserver()
+    })
+
     onMounted(async () => {
       await fetchFirstPage()
       startObserver()
     })
 
-    onUnmounted(stopObserver)
+    onUnmounted(() => {
+      loadController?.abort()
+      stopObserver()
+    })
 
     return {
       posts,
