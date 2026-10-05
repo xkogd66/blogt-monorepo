@@ -141,6 +141,22 @@ kubectl port-forward service/blogt-api 3000:3000 -n blogt
 Edit `src/assets/tailwind.css`. Output is generated — do not edit `src/assets/output.css` directly.
 Path alias: `@/` → `./src`.
 
+### PWA
+
+`blogtv` is a PWA via `vite-plugin-pwa` (Workbox), configured in `vite.config.js`.
+The build emits `sw.js`, `workbox-*.js`, `registerSW.js` and `manifest.webmanifest` into `dist/`;
+`index.html` gets the manifest link + service-worker registration injected automatically
+(do **not** hand-add `<link rel="manifest">` — the plugin injects it, and a duplicate breaks tooling).
+
+- App icons live in `blogtv/public/`: `pwa-192x192.png`, `pwa-512x512.png`,
+  `maskable-icon-512x512.png` (maskable, padded on white), and `apple-touch-icon.png`.
+  Icons are derived from `src/assets/logo.png` (170×170).
+- Precache covers the app shell; runtime caching: `/api/*` → NetworkFirst (fallback offline),
+  `/blotpix/` media → CacheFirst, Google Fonts → StaleWhileRevalidate.
+  `navigateFallbackDenylist` keeps the SPA fallback from swallowing `/api/` and `/archive/`.
+- `nginx.conf` serves `/sw.js` and `/manifest.webmanifest` with `no-cache` and hashed `/assets/` as immutable.
+- The service worker only runs on secure origins (https or `localhost`); it is disabled in `vite dev`.
+
 ## blogger
 
 ### Data
