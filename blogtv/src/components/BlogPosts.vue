@@ -121,6 +121,7 @@ import { marked } from 'marked'
 import { postStore } from '@/stores/posts'
 import CryptoJS from 'crypto-js'
 import { API_BASE, MEDIA_BASE } from '@/config'
+import { splitGeotag } from '@/utils/geotag'
 
 export default {
   name: 'BlogPosts',
@@ -162,23 +163,9 @@ export default {
       return tags
     }
 
-    const extractGeotag = (post) => {
-      const cleanedPost = removeMetadata(post)
-      const geotagMatch = cleanedPost.match(/\[(.*?)\]\((https:\/\/maps\.app\.goo\.gl\/[^\s)]+)\)/)
-      return geotagMatch
-        ? {
-            text: geotagMatch[1],
-            url: geotagMatch[2],
-          }
-        : null
-    }
+    const extractGeotag = (post) => splitGeotag(removeMetadata(post)).geotag
 
-    const removeGeotag = (content) => {
-      return content
-        .replace(/\[.*?\]\(https:\/\/maps\.app\.goo\.gl\/[^\s)]+\)\s*/g, '')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-    }
+    const removeGeotag = (content) => splitGeotag(content).body
 
     const extractDate = (post) => {
       const dateMatch = post.match(/^Date:\s*(\d{2})(\d{2})(\d{4})$/m)

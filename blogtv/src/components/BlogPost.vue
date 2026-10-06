@@ -151,6 +151,7 @@ import CryptoJS from 'crypto-js'
 import ExifViewer from './ExifViewer.vue'
 import GeminiViewer from './GeminiViewer.vue'
 import { API_BASE } from '@/config'
+import { splitGeotag } from '@/utils/geotag'
 
 export default {
   name: 'BlogPost',
@@ -172,17 +173,11 @@ export default {
 
   computed: {
     geotag() {
-      if (!this.post?.content) return null
-      const m = this.post.content.match(/\[(.*?)\]\((https:\/\/maps\.app\.goo\.gl\/[^\s)]+)\)/)
-      return m ? { text: m[1], url: m[2] } : null
+      return splitGeotag(this.post?.content).geotag
     },
     renderedContent() {
       if (!this.post?.content) return ''
-      const cleaned = this.post.content
-        .replace(/\[.*?\]\(https:\/\/maps\.app\.goo\.gl\/[^\s)]+\)\s*/g, '')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-      return marked(cleaned)
+      return marked(splitGeotag(this.post.content).body)
     },
     caption() {
       if (!this.post?.content) return ''
