@@ -3,12 +3,17 @@ html
   head
     title= title
     meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    meta(name="theme-color" content="#ffffff")
+    link(rel="manifest", href="/images/favicon_io/site.webmanifest")
+    link(rel="apple-touch-icon", href="/pwa-icons/apple-touch-icon.png")
+    link(rel="icon", type="image/png", sizes="192x192", href="/pwa-icons/icon-192.png")
 
     link(rel="stylesheet", href="/stylesheets/base.css?v=" + Date.now())
     link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css")
     link(rel="stylesheet", href="/stylesheets/mobile.css?v=" + Date.now())
 
     script(src="/js/protectEditor.js")
+    script(src="/js/registerSW.js")
     block head
 
   body
