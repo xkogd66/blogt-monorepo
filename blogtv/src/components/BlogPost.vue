@@ -22,7 +22,7 @@
       </div>
 
       <!-- Image -->
-      <div class="pt-6 sm:pt-8 md:pt-[50px]">
+      <div v-show="!imageError" class="pt-6 sm:pt-8 md:pt-[50px]">
         <figure class="aspect-square text-center">
           <div v-if="imageLoading" class="flex items-center justify-center text-sm sm:text-base text-gray-700">
             Fetching Image...
@@ -168,6 +168,7 @@ export default {
       showImageModal: false,
       loading: false,
       imageLoading: true,
+      imageError: false,
     }
   },
 
@@ -192,6 +193,7 @@ export default {
         if (newDate) {
           this.date = newDate
           this.imageLoading = true
+          this.imageError = false
           await this.loadPost(newDate)
         } else {
           this.post = null
@@ -220,6 +222,7 @@ export default {
     },
     onImageError() {
       this.imageLoading = false
+      this.imageError = true
     },
 
     async loadPost(date) {

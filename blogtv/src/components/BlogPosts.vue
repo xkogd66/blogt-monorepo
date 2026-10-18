@@ -28,6 +28,7 @@
           :src="getImageUrl(post)"
           alt="Post Image"
           class="w-full h-auto max-w-full border border-gray-800 object-contain"
+          @error="$event.target.parentElement.style.display = 'none'"
         />
       </div>
       <p class="text-xs text-center text-gray-600 px-4 pb-2">
