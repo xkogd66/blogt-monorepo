@@ -16,6 +16,7 @@
       <ul>
         <span @click="goToRandomPost" class="clickable">Random Post</span>
         <span @click="goToExploreDay" class="clickable">Explore Day</span>
+        <span @click="goToTags" class="clickable">Tags</span>
         <li>
           <input type="date" v-model="selectedDate" @change="goToPost" class="nav-input" />
         </li>
@@ -40,6 +41,9 @@
         </li>
         <li>
           <span @click="goToExploreDay" class="clickable">Explore Day</span>
+        </li>
+        <li>
+          <span @click="goToTags" class="clickable">Tags</span>
         </li>
         <li>
           <input type="date" v-model="selectedDate" @change="goToPost" class="nav-input" />
@@ -129,6 +133,12 @@ export default {
       if (isSmallScreen.value) closeMenu()
     }
 
+    // Search page with no tag shows the tag cloud
+    const goToTags = () => {
+      router.push({ name: 'search' })
+      if (isSmallScreen.value) closeMenu()
+    }
+
     const goToExploreDay = () => {
       router.push({ name: 'explore-day' })
 
@@ -156,6 +166,7 @@ export default {
       searchByTag,
       goToRandomPost,
       goToExploreDay,
+      goToTags,
     }
   },
   methods: {},

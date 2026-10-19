@@ -1,5 +1,10 @@
 <template>
   <div class="max-w-[800px] mx-auto px-4 sm:px-6 md:px-8 py-6">
+    <!-- Tag cloud: right-hand column on wide screens only (see style); elsewhere via the "Tags" menu item -->
+    <aside class="tag-cloud-column">
+      <h3 class="text-sm uppercase font-bold text-gray-600 mb-2">Tags</h3>
+      <TagCloud />
+    </aside>
     <div
       v-for="(post, index) in posts"
       :key="index"
@@ -123,9 +128,11 @@ import { postStore } from '@/stores/posts'
 import CryptoJS from 'crypto-js'
 import { API_BASE, MEDIA_BASE } from '@/config'
 import { splitGeotag } from '@/utils/geotag'
+import TagCloud from '@/components/TagCloud.vue'
 
 export default {
   name: 'BlogPosts',
+  components: { TagCloud },
   setup() {
     const posts = ref([])
     const nextCursor = ref(null)
@@ -371,3 +378,21 @@ export default {
   },
 }
 </script>
+
+<style scoped>
+/* Hidden unless there is room beside the 800px post column (800 + 2 x 260 + gutters) */
+.tag-cloud-column {
+  display: none;
+}
+@media (min-width: 1340px) {
+  .tag-cloud-column {
+    display: block;
+    position: fixed;
+    top: 90px;
+    left: calc(50% + 420px);
+    width: 240px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+  }
+}
+</style>
