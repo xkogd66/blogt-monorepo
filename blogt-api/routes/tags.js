@@ -9,6 +9,21 @@ var debug =require("debug")("blogt-api:tags-route");
 let filePath = path.join(__dirname, "..", "posts", "tags_index.json");
 debug(`[routes] tags index path: ${filePath}`);
 
+// GET /tags -> [{tag, count}] alphabetical. Backs the blogtv tag cloud.
+router.get("/", async (req, res) => {
+  try {
+    const tagIndex = JSON.parse(await fs.readFile(filePath, "utf-8"));
+    res.send(
+      Object.entries(tagIndex)
+        .map(([tag, posts]) => ({ tag, count: posts.length }))
+        .sort((a, b) => a.tag.localeCompare(b.tag))
+    );
+  } catch (error) {
+    console.error("Error reading tags index:", error);
+    res.status(500).send("Failed to fetch tag data");
+  }
+});
+
 // GET /tags/:tagName -> [{date, title}] newest-first, deduped by date.
 // Case-insensitive substring match against tag names ("leeves" hits both
 // "freeleeves" and "free leeves town loop"); no match -> [].

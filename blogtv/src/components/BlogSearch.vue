@@ -5,7 +5,20 @@
 
     <!-- Default State -->
     <div v-if="!searchTag && !loading" class="text-center py-4 text-gray-600">
-      Enter a tag to start searching.
+      <p>Enter a tag to start searching{{ cloud.length ? ', or pick one:' : '.' }}</p>
+      <!-- Tag cloud: font size scales with post count -->
+      <div class="tag-cloud mt-4">
+        <router-link
+          v-for="t in cloud"
+          :key="t.tag"
+          :to="{ name: 'search', query: { tag: t.tag } }"
+          :title="`${t.count} post${t.count === 1 ? '' : 's'}`"
+          class="text-black hover:text-blue-300 mx-2"
+          :style="{ fontSize: cloudSize(t.count) }"
+        >
+          {{ t.tag }}
+        </router-link>
+      </div>
     </div>
 
     <!-- Loading State -->
@@ -75,6 +88,7 @@ export default {
     return {
       searchTag: this.$route.query.tag || '', // Set the initial tag from the route
       searchResults: [],
+      cloud: [], // [{tag, count}] for the tag cloud
       loading: false,
       error: null,
       currentPage: 1,
@@ -109,8 +123,22 @@ export default {
     if (this.searchTag) {
       this.performSearch()
     }
+    this.loadCloud()
   },
   methods: {
+    async loadCloud() {
+      try {
+        const res = await fetch(`${API_BASE}/tags`)
+        if (res.ok) this.cloud = await res.json()
+      } catch (err) {
+        console.error('Tag cloud error:', err) // cloud is optional; search still works
+      }
+    },
+    // 0.9rem (rarest) .. 2.2rem (most used), linear in count
+    cloudSize(count) {
+      const max = Math.max(...this.cloud.map((t) => t.count))
+      return `${0.9 + (1.3 * (count - 1)) / Math.max(max - 1, 1)}rem`
+    },
     async performSearch() {
       this.loading = true;
       this.error = null;
