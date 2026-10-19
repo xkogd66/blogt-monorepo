@@ -91,7 +91,7 @@ or `updateTagsIndex()` for a full rebuild.
 
 **Read / search path.**
 - `GET /tags/:tagName` (`routes/tags.js`): URL-decodes, lowercases, and returns the posts of **every tag whose name contains the query** (case-insensitive substring; `leeves` matches `freeleeves` and `free leeves town loop`) as `[{date, title}]`, deduped by date, newest-first, or `[]` for no match. Single query term only — no multi-tag search, and no tag list endpoint.
-- `GET /tags` returns `[{tag, count}]` (alphabetical, lowercased keys) from the index. `TagCloud.vue` renders it (font size scales with count; each tag links to `search?tag=`). It is shown (a) as a fixed right-hand column in `BlogPosts.vue` at ≥1340px, (b) on the search page when no `?tag=` is set, reached by the "Tags" item in the navbar / hamburger menu.
+- `GET /tags` returns `[{tag, count}]` (alphabetical, lowercased keys) from the index. `TagCloud.vue` renders it as a packed word cloud (`utils/cloudLayout.js`, dependency-free spiral packer; size and darkness scale with count; props `limit`, `height`; each tag links to `search?tag=`). It is shown (a) as a fixed right-hand column in `BlogPosts.vue` at ≥1340px, (b) on the search page when no `?tag=` is set, reached by the "Tags" item in the navbar / hamburger menu.
 - `GET /post/details/:ddmmyyyy` returns `tags: string[]` (original case).
 - blogtv: the navbar input ("Search by tag", `BlogNavbar.vue`), and tag links in `BlogPost.vue` / `BlogPosts.vue`, all navigate to route `search` with `?tag=<tag>` (trimmed, original case). `BlogSearch.vue` watches `$route.query.tag`, calls `/tags/<tag>`, and lists results.
 - `BlogPosts.vue` extracts tags itself from the raw `Tags:` line (`extractTags`; shows "No Tags" when absent).

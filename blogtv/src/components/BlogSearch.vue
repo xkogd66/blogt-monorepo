@@ -6,7 +6,7 @@
     <!-- Default State -->
     <div v-if="!searchTag && !loading" class="text-center py-4 text-gray-600">
       <p>Enter a tag to start searching, or pick one:</p>
-      <TagCloud class="mt-4" />
+      <TagCloud class="mt-4" :limit="100" :height="480" />
     </div>
 
     <!-- Loading State -->
