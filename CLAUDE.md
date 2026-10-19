@@ -79,6 +79,28 @@ Body markdown...
 Update it with `updateTagsIndexForPost(date, title, tags)` for single-post changes,
 or `updateTagsIndex()` for a full rebuild.
 
+### Tags & tag search — end to end
+
+**Definition.** A tag is a comma-separated token on the `Tags:` line of a post file. The API parses it in `parseBlogEntry` (split on `,`, trimmed). Display case is preserved in the post file; the **index key is lowercased** and empty tags are dropped. Tags are required (non-empty) on create/update.
+
+**Write path.**
+1. Editor form (`new.pug` / `edit.pug`) has one text input, comma-separated (`edit.pug` pre-fills `post.tags.join(', ')`).
+2. `blogt-editor/routes/text.js` splits a string into an array (`split(',')`, trim, drop empties) and calls `POST|PUT blogt-api /post/:ddmmyyyy` with `tags: string[]`. If the API call fails, the editor falls back to writing the file itself and `updateTagsDictionary`.
+3. `blogt-api/routes/post.js` writes `Tags: a, b` and calls `updateTagsIndexForPost` (POST: fire-and-forget; PUT: awaited; PUT also accepts a CSV string).
+4. `updateTagsIndexForPost` first removes the post's date from **every** tag (so removed tags disappear and empty tags are deleted), then re-adds it under each lowercased tag and re-sorts newest-first.
+
+**Read / search path.**
+- `GET /tags/:tagName` (`routes/tags.js`): URL-decodes, lowercases, and returns the posts of **every tag whose name contains the query** (case-insensitive substring; `leeves` matches `freeleeves` and `free leeves town loop`) as `[{date, title}]`, deduped by date, newest-first, or `[]` for no match. Single query term only — no multi-tag search, and no tag list endpoint.
+- `GET /post/details/:ddmmyyyy` returns `tags: string[]` (original case).
+- blogtv: the navbar input ("Search by tag", `BlogNavbar.vue`), and tag links in `BlogPost.vue` / `BlogPosts.vue`, all navigate to route `search` with `?tag=<tag>` (trimmed, original case). `BlogSearch.vue` watches `$route.query.tag`, calls `/tags/<tag>`, and lists results.
+- `BlogPosts.vue` extracts tags itself from the raw `Tags:` line (`extractTags`; shows "No Tags" when absent).
+
+**Gotchas.**
+- `BlogSearch.vue` re-sorts results **oldest-first**, overriding the API's newest-first order.
+- Tag case/spacing is only normalized in the index; "Rock", "rock" and "ROCK" are the same search but display separately on posts.
+- Legacy: `blogt-editor/public/js/blog-loader.js` links tags to `/tagged/<slug>` — that route is not in blogtv.
+- `blogt-api/docs/api-overview.md` is the endpoint reference; keep it in sync with the above.
+
 ### Debug logging
 
 All debug output uses the `debug` package. No `console.log/error/time` in route files.

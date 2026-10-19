@@ -199,6 +199,8 @@ const getPostsArray = async (dateString, postsPerPage = 10) => {
   }
 };
 
+// Re-index one post: drops `date` from every tag (so removed tags vanish, empty
+// tags are deleted), then adds it under each lowercased tag, newest-first.
 async function updateTagsIndexForPost(date, title, tags) {
   const indexPath = path.join(postsDir, "tags_index.json");
   let index = {};
@@ -225,6 +227,7 @@ async function updateTagsIndexForPost(date, title, tags) {
   invalidateDateCache();
 }
 
+// Full rebuild of tags_index.json by scanning every posts/{year}/{month}/{day}.md.
 async function updateTagsIndex() {
   const index = {};
 
@@ -336,4 +339,5 @@ module.exports = {
   getSortedDates,
   invalidateDateCache,
   parseBlogEntry,
+  ddmmyyyyToSortKey,
 };
