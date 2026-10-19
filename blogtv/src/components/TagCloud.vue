@@ -11,6 +11,7 @@
         :title="`${p.count} post${p.count === 1 ? '' : 's'}`"
         class="hover:text-blue-300"
         :style="{
+          fontFamily: font,
           fontSize: p.size + 'px',
           color: shade(p.t),
           transform: p.vertical ? 'translate(-50%, -50%) rotate(-90deg)' : undefined,
@@ -24,7 +25,7 @@
 
 <script>
 import { API_BASE } from '@/config'
-import { layoutCloud } from '@/utils/cloudLayout'
+import { layoutCloud, CLOUD_FONT } from '@/utils/cloudLayout'
 
 // Word cloud from GET /tags: the `limit` most-used tags packed into the box,
 // size and darkness scale with post count.
@@ -35,7 +36,7 @@ export default {
     height: { type: Number, default: 420 },
   },
   data() {
-    return { tags: [], placed: [], width: 0 } // tags: [{text, count}]
+    return { tags: [], placed: [], width: 0, font: CLOUD_FONT } // tags: [{text, count}]
   },
   async mounted() {
     try {
@@ -71,6 +72,7 @@ export default {
 .tag-cloud {
   position: relative;
   width: 100%;
+  overflow: hidden;
 }
 .word {
   position: absolute;

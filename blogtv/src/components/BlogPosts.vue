@@ -3,7 +3,7 @@
     <!-- Tag cloud: right-hand column on wide screens only (see style); elsewhere via the "Tags" menu item -->
     <aside class="tag-cloud-column">
       <h3 class="text-sm uppercase font-bold text-gray-600 mb-2">Tags</h3>
-      <TagCloud :limit="30" :height="380" />
+      <TagCloud :limit="22" :height="340" />
     </aside>
     <div
       v-for="(post, index) in posts"
@@ -391,9 +391,6 @@ export default {
     top: 90px;
     left: calc(50% + 420px);
     width: 240px;
-    max-height: calc(100vh - 110px);
-    overflow-y: auto;
-    overflow-x: hidden;
   }
 }
 </style>

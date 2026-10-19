@@ -2,9 +2,13 @@
 // along an outward spiral (bounding-box collisions, no dependencies).
 // words: [{text, count, ...}] -> placed: [{...word, size, x, y, w, h, vertical}]
 // A word that cannot be placed is shrunk 10% at a time down to minSize, then dropped.
-export function layoutCloud(words, W, H, { font = 'Lato, Helvetica, Arial, sans-serif', pad = 3 } = {}) {
-  const minSize = Math.max(10, H * 0.026)
-  const maxSize = H * 0.2
+// Measured and rendered with the same font, or words overlap.
+export const CLOUD_FONT = "Lato, Helvetica, Arial, sans-serif"
+
+export function layoutCloud(words, W, H, { font = CLOUD_FONT, pad = 4 } = {}) {
+  const minSize = Math.max(11, H * 0.026)
+  const maxSize = Math.min(H * 0.2, W * 0.2)
+  const allowVertical = W >= 500 // too cramped in a narrow column
   const maxCount = Math.max(...words.map((w) => w.count))
   const ctx = document.createElement('canvas').getContext('2d')
   const placed = []
@@ -16,7 +20,7 @@ export function layoutCloud(words, W, H, { font = 'Lato, Helvetica, Arial, sans-
   const sorted = [...words].sort((a, b) => b.count - a.count)
   sorted.forEach((word, i) => {
     const t = maxCount > 1 ? (word.count - 1) / (maxCount - 1) : 0
-    const vertical = i > 2 && i % 4 === 0 // a few small words run vertically, like a classic word cloud
+    const vertical = allowVertical && i > 2 && i % 4 === 0 // a few small words run vertically, like a classic word cloud
     for (let size = minSize + (maxSize - minSize) * Math.sqrt(t); size >= minSize; size *= 0.9) {
       ctx.font = `700 ${size}px ${font}`
       const textW = ctx.measureText(word.text).width
