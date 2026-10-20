@@ -33,6 +33,7 @@
       <div class="w-full aspect-square flex items-center justify-center p-4">
         <img
           :src="getImageUrl(post)"
+          crossorigin="anonymous"
           alt="Post Image"
           class="w-full h-auto max-w-full border border-gray-800 object-contain"
           @error="$event.target.parentElement.style.display = 'none'"

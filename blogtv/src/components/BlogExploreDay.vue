@@ -23,7 +23,7 @@
     <div class="images-grid" v-if="images.length > 0">
       <div class="image-card" v-for="(image, index) in images" :key="index" @click="openImage(image)">
         <div class="image-container">
-          <img :src="image.url" :alt="`Image from ${image.day}/${image.month}/${image.year}`" class="grid-image" />
+          <img :src="image.url" crossorigin="anonymous" :alt="`Image from ${image.day}/${image.month}/${image.year}`" class="grid-image" />
         </div>
         <div class="image-year">{{ image.year }}</div>
       </div>
@@ -46,7 +46,7 @@
         <div class="close-button-container">
           <button class="close-modal-button" @click="closeImageModal">Close</button>
         </div>
-        <img :src="selectedImage.url" :alt="`Image from ${selectedImage.day}/${selectedImage.month}/${selectedImage.year}`" class="full-resolution-image" />
+        <img :src="selectedImage.url" crossorigin="anonymous" :alt="`Image from ${selectedImage.day}/${selectedImage.month}/${selectedImage.year}`" class="full-resolution-image" />
         <div class="image-date">
           <router-link :to="{ name: 'post', params: { date: formatDateForRoute(selectedImage) }}" class="view-post-link">
             View post from {{ selectedImage.day }}/{{ selectedImage.month }}/{{ selectedImage.year }}
@@ -146,6 +146,7 @@ export default {
       try {
         // Create a new Image object to check if the image exists
         const img = new Image();
+        img.crossOrigin = "anonymous";
         const imageLoadPromise = new Promise((resolve, reject) => {
           img.onload = () => resolve(true);
           img.onerror = () => reject(false);

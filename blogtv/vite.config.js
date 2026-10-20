@@ -70,7 +70,7 @@ export default defineConfig({
             urlPattern: ({ url }) => url.pathname.startsWith('/blotpix/'),
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'media-cache',
+              cacheName: 'media-cache-v2', // v2: v1 held opaque no-cors responses that break fetch(),
               expiration: {
                 maxEntries: 500,
                 maxAgeSeconds: 60 * 60 * 24 * 30,

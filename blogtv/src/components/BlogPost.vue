@@ -29,6 +29,7 @@
           </div>
           <img
             :src="post.imageUrl"
+            crossorigin="anonymous"
             alt="Post Image"
             class="w-full h-auto max-w-full sm:max-w-[800px] border border-gray-800 cursor-pointer transition-transform duration-300 ease-in-out hover:scale-[1.02] hover:shadow-[0_5px_15px_rgba(0,0,0,0.3)]"
             @load="onImageLoaded"
@@ -59,6 +60,7 @@
           </div>
           <img
             :src="post.imageUrl"
+            crossorigin="anonymous"
             alt="Full Resolution Image"
             class="max-w-full max-h-[calc(100vh-100px)] object-contain"
           />
