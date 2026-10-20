@@ -90,7 +90,7 @@
 
       <!-- Gemini AI Viewer -->
       <div v-if="showGeminiData" class="mt-5 mb-5 p-4 border border-gray-300 rounded bg-gray-200">
-        <GeminiViewer :initialImageUrl="post.imageUrl" />
+        <GeminiViewer :date="post.date" :initialImageUrl="post.imageUrl" />
       </div>
 
       <!-- Markdown Content -->

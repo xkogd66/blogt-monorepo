@@ -45,6 +45,17 @@ mirrored at `\`/posts\`` (`routes/archive.js`).
 > `/post/from/:startDate` is retained as an alias — both paths delegate to the same
 > `getPostsFrom` implementation in `utils/utils.js`.
 
+### `GET /post/analysis/:ddmmyyyy` · `PUT /post/analysis/:ddmmyyyy`
+
+- **Description**: Cached Gemini image analysis, stored as a sidecar file
+  `posts/{year}/{month}/{day}.analysis.json` next to the post.
+- **GET**: `200` with the saved JSON, `404` if not analysed yet, `400` if the date is not 8 digits.
+- **PUT**: body is the analysis JSON. `204` on success, `404` if the post does not exist.
+  Overwrites any previous analysis (used by "Re-analyse").
+- Unauthenticated, like the other write routes.
+
+---
+
 ### `GET /post`
 
 - **Description**: Returns the latest posts (up to 10), newest first. This is the first

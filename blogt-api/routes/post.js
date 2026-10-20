@@ -75,6 +75,38 @@ router.post("/:date", async (req, res) => {
   }
 });
 
+// AI analysis cache: sidecar posts/{year}/{month}/{day}.analysis.json
+const analysisPath = (date) =>
+  /^\d{8}$/.test(date)
+    ? path.join(postsDir, date.slice(4, 8), date.slice(2, 4), `${date.slice(0, 2)}.analysis.json`)
+    : null;
+
+router.get("/analysis/:date", async (req, res) => {
+  const file = analysisPath(req.params.date);
+  if (!file) return res.status(400).json({ error: "Invalid date" });
+  try {
+    res.type("json").send(await fs.readFile(file, "utf-8"));
+  } catch (err) {
+    if (err.code === "ENOENT") return res.status(404).json({ error: "No analysis" });
+    debug("Error reading analysis: %O", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.put("/analysis/:date", async (req, res) => {
+  const file = analysisPath(req.params.date);
+  if (!file) return res.status(400).json({ error: "Invalid date" });
+  try {
+    await fs.access(file.replace(/\.analysis\.json$/, ".md")); // post must exist
+    await fs.writeFile(file, JSON.stringify(req.body), "utf-8");
+    res.status(204).end();
+  } catch (err) {
+    if (err.code === "ENOENT") return res.status(404).json({ error: "Post not found" });
+    debug("Error saving analysis: %O", err);
+    res.status(500).json({ error: "Failed to save analysis" });
+  }
+});
+
 // Get structured details for a single post using DDMMYYYY
 router.get("/details/:date", async (req, res) => {
   const { date } = req.params;

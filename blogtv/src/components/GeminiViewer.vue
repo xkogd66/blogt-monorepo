@@ -14,6 +14,7 @@
         <div class="header-section">
           <h3>AI Analysis Result</h3>
           <span class="model-badge">Gemini 2.5 Flash</span>
+          <button class="text-xs underline" @click.prevent="analyzeWithGemini(initialImageUrl)">Re-analyse</button>
         </div>
 
         <div class="data-group">
@@ -90,12 +91,17 @@
 
 <script>
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { API_BASE } from '@/config'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
 
 export default {
   name: 'GeminiViewer',
   props: {
+    date: {
+      type: String,
+      default: '',
+    },
     initialImageUrl: {
       type: String,
       default: '',
@@ -112,8 +118,23 @@ export default {
     }
   },
 
+  watch: {
+    date: { immediate: true, handler: 'loadSaved' },
+  },
 
   methods: {
+    // Saved analysis lives in blogt-api; a miss (404) just means "not analysed yet".
+    async loadSaved() {
+      this.result = null
+      if (!this.date) return
+      try {
+        const res = await fetch(`${API_BASE}/post/analysis/${this.date}`)
+        if (res.ok) this.result = await res.json()
+      } catch (e) {
+        console.warn('Could not load saved analysis:', e)
+      }
+    },
+
     async analyzeWithGemini(url) {
       if (!API_KEY) {
         this.error = 'Gemini API Key is missing. Please set VITE_GEMINI_API_KEY in your environment.'
@@ -171,6 +192,15 @@ export default {
             objects: [],
             text: ''
           }
+        }
+
+        // Persist so the next view skips Gemini; a failed save must not hide the result.
+        if (this.date) {
+          fetch(`${API_BASE}/post/analysis/${this.date}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.result),
+          }).catch((e) => console.warn('Could not save analysis:', e))
         }
 
       } catch (err) {
