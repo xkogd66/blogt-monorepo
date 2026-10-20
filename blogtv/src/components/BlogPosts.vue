@@ -1,9 +1,11 @@
 <template>
-  <div class="max-w-[800px] mx-auto px-4 sm:px-6 md:px-8 py-6">
+  <div class="relative max-w-[800px] mx-auto px-4 sm:px-6 md:px-8 py-6">
     <!-- Tag cloud: right-hand column on wide screens only (see style); elsewhere via the "Tags" menu item -->
     <aside class="tag-cloud-column">
-      <h3 class="text-sm uppercase font-bold text-gray-600 mb-2">Tags</h3>
-      <TagCloud :limit="22" :height="340" />
+      <div class="tag-cloud-sticky">
+        <h3 class="text-sm uppercase font-bold text-gray-600 mb-2">Tags</h3>
+        <TagCloud :limit="22" :height="340" />
+      </div>
     </aside>
     <div
       v-for="(post, index) in posts"
@@ -387,10 +389,16 @@ export default {
 @media (min-width: 1340px) {
   .tag-cloud-column {
     display: block;
-    position: fixed;
-    top: 90px;
-    left: calc(50% + 420px);
+    position: absolute; /* full-height track beside the posts, so it starts level with the first card */
+    top: 0;
+    bottom: 0;
+    left: calc(100% + 20px);
     width: 240px;
+  }
+  .tag-cloud-sticky {
+    position: sticky;
+    top: 84px; /* stays below the navbar while scrolling */
+    margin-top: 24px; /* the container's py-6, so it lines up with the first card */
   }
 }
 </style>

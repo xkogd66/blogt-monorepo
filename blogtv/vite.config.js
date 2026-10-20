@@ -65,8 +65,10 @@ export default defineConfig({
           },
           {
             // Post / album images served from the media host.
+            // ponytail: not CacheFirst — <img> is no-cors, so a 404 (image not uploaded yet)
+            // is cached as an opaque status-0 response and would stick for 30 days.
             urlPattern: ({ url }) => url.pathname.startsWith('/blotpix/'),
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'media-cache',
               expiration: {
