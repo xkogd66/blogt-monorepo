@@ -175,7 +175,7 @@ The build emits `sw.js`, `workbox-*.js`, `registerSW.js` and `manifest.webmanife
   `maskable-icon-512x512.png` (maskable, padded on white), and `apple-touch-icon.png`.
   Icons are derived from `src/assets/logo.png` (170×170).
 - Precache covers the app shell; runtime caching: `/api/*` → NetworkFirst (fallback offline),
-  `/blotpix/` media → CacheFirst, Google Fonts → StaleWhileRevalidate.
+  `/blotpix/` media → StaleWhileRevalidate (cache `media-cache-v3`, 200s only; every image load must use `crossorigin="anonymous"` so the worker sees the real status and a not-yet-uploaded image (404) is never cached — a fresh upload can still need an extra reload to appear), Google Fonts → StaleWhileRevalidate.
   `navigateFallbackDenylist` keeps the SPA fallback from swallowing `/api/` and `/archive/`.
 - `nginx.conf` serves `/sw.js` and `/manifest.webmanifest` with `no-cache` and hashed `/assets/` as immutable.
 - The service worker only runs on secure origins (https or `localhost`); it is disabled in `vite dev`.
